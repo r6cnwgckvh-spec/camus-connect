@@ -45,21 +45,19 @@ export const authOptions: NextAuthOptions = {
       return true;
     },
     async session({ session, token }) {
-      if (session.user) {
-        session.user.id = token.sub!;
-        const dbUser = await prisma.user.findFirst({
-          where: { OR: [{ id: token.sub! }, { googleId: token.sub! }] },
-          select: { id: true, onboardingCompleted: true, role: true, name: true, email: true, profilePhotoUrl: true },
-        });
-        if (dbUser) {
-          session.user.id = dbUser.id;
-          session.user.onboardingCompleted = dbUser.onboardingCompleted;
-          session.user.role = dbUser.role;
-          session.user.name = dbUser.name;
-          session.user.email = dbUser.email;
-          session.user.image = dbUser.profilePhotoUrl;
-        }
-      }
+      if (!session.user) return session as any;
+      session.user.id = token.sub!;
+      const dbUser = await prisma.user.findFirst({
+        where: { OR: [{ id: token.sub! }, { googleId: token.sub! }] },
+        select: { id: true, onboardingCompleted: true, role: true, name: true, email: true, profilePhotoUrl: true },
+      });
+      if (!dbUser) return null as any;
+      session.user.id = dbUser.id;
+      session.user.onboardingCompleted = dbUser.onboardingCompleted;
+      session.user.role = dbUser.role;
+      session.user.name = dbUser.name;
+      session.user.email = dbUser.email;
+      session.user.image = dbUser.profilePhotoUrl;
       return session;
     },
     async jwt({ token, account, profile }) {
