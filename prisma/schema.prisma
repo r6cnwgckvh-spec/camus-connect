@@ -1,0 +1,334 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Gender {
+  Male
+  Female
+  Other
+  PreferNotToSay
+}
+
+enum YearOfStudy {
+  FirstYear
+  SecondYear
+  ThirdYear
+  FourthYear
+  FifthYear
+  FinalYear
+  Graduated
+}
+
+enum LookingFor {
+  Roommate
+  PG_Hostel
+  StudyGroup
+  Networking
+}
+
+enum ListingType {
+  have_room
+  looking_room
+}
+
+enum RoomType {
+  single
+  shared
+  pg
+  flat
+}
+
+enum ListingStatus {
+  active
+  inactive
+  expired
+}
+
+enum ConnectionStatus {
+  pending
+  accepted
+  declined
+}
+
+enum UserRole {
+  user
+  admin
+}
+
+model User {
+  id                  String   @id @default(cuid())
+  googleId            String   @unique
+  username            String?  @unique
+  name                String
+  email               String   @unique
+  phone               String?  @unique
+  phoneVerified       Boolean  @default(false)
+  gender              Gender?
+  dob                 DateTime?
+  profilePhotoUrl     String?
+  bio                 String?
+  collegeId           String?
+  course              String?
+  branch              String?
+  yearOfStudy         YearOfStudy?
+  lookingFor          LookingFor[]
+  onboardingCompleted Boolean  @default(false)
+  verifiedBadge       Boolean  @default(false)
+  role                UserRole @default(user)
+  compatibilityAnswers Json?
+  theme               String   @default("system")
+  phoneVisibility     String   @default("connections")
+  profileVisible      Boolean  @default(true)
+  mapPrecision        String   @default("exact")
+  emailDigest         String   @default("off")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  lastActive          DateTime?
+  deactivated         Boolean  @default(false)
+  deactivatedAt       DateTime?
+
+  college        College?       @relation(fields: [collegeId], references: [id])
+  listings       Listing[]
+  sentRequests   Connection[]   @relation("Requester")
+  receivedRequests Connection[] @relation("Receiver")
+  messages       Message[]
+  globalMessages GlobalMessage[]
+  notifications  Notification[]
+  reports        Report[]       @relation("Reporter")
+  blockedUsers   BlockedUser[]  @relation("Blocker")
+  blockedBy      BlockedUser[]  @relation("Blocked")
+  reviewsGiven   Review[]       @relation("Reviewer")
+  reviewsReceived Review[]      @relation("Reviewed")
+  favorites      Favorite[]
+  savedSearches  SavedSearch[]
+  collegeSubmissions CollegeSubmission[]
+
+  @@index([googleId])
+  @@index([email])
+  @@index([collegeId])
+}
+
+model College {
+  id          String   @id @default(cuid())
+  name        String
+  city        String
+  state       String
+  type        String   @default("Other")
+  affiliation String   @default("Other")
+  lat         Float?
+  lng         Float?
+  pending     Boolean  @default(false)
+  submittedBy String?
+  createdAt   DateTime @default(now())
+
+  users   User[]
+  listings Listing[]
+
+  @@unique([name, city, state])
+  @@index([name])
+  @@index([city, state])
+}
+
+model Listing {
+  id              String       @id @default(cuid())
+  userId          String
+  listingType     ListingType
+  lat             Float
+  lng             Float
+  address         String
+  rentMin         Float?
+  rentMax         Float?
+  moveInDate      DateTime?
+  roomType        RoomType?
+  amenities       String[]
+  photos          String[]
+  preferredGender Gender?
+  description     String?
+  status          ListingStatus @default(active)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  expiresAt       DateTime
+  filledAt        DateTime?
+
+  user       User       @relation(fields: [userId], references: [id])
+  college    College?   @relation(fields: [collegeId], references: [id])
+  collegeId  String?
+  favorites  Favorite[]
+  reports    Report[]   @relation("ReportedListing")
+
+  @@index([userId])
+  @@index([status])
+  @@index([lat, lng])
+  @@index([collegeId])
+}
+
+model Connection {
+  id           String           @id @default(cuid())
+  requesterId  String
+  receiverId   String
+  status       ConnectionStatus @default(pending)
+  message      String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  requester User      @relation("Requester", fields: [requesterId], references: [id])
+  receiver  User      @relation("Receiver", fields: [receiverId], references: [id])
+  messages  Message[]
+
+  @@unique([requesterId, receiverId])
+  @@index([requesterId])
+  @@index([receiverId])
+  @@index([status])
+}
+
+model Message {
+  id           String    @id @default(cuid())
+  connectionId String
+  senderId     String
+  content      String
+  sentAt       DateTime  @default(now())
+  readAt       DateTime?
+
+  connection Connection @relation(fields: [connectionId], references: [id])
+  sender     User       @relation(fields: [senderId], references: [id])
+
+  @@index([connectionId, sentAt])
+  @@index([senderId])
+}
+
+model OtpCode {
+  id        String   @id @default(cuid())
+  email     String
+  code      String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([email, used])
+  @@index([expiresAt])
+}
+
+model GlobalMessage {
+  id        String   @id @default(cuid())
+  userId    String
+  content   String
+  flagged   Boolean  @default(false)
+  flagReason String?
+  moderated Boolean  @default(false)
+  moderatedBy String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([createdAt])
+  @@index([flagged])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String
+  title     String
+  body      String
+  data      Json     @default("{}")
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, read])
+  @@index([createdAt])
+}
+
+model Report {
+  id              String   @id @default(cuid())
+  reporterId      String
+  reportedUserId  String?
+  reportedListingId String?
+  reason          String
+  description     String?
+  status          String   @default("pending")
+  createdAt       DateTime @default(now())
+  resolvedAt      DateTime?
+  resolvedById    String?
+  actionTaken     String?
+
+  reporter User  @relation("Reporter", fields: [reporterId], references: [id])
+  listing  Listing? @relation("ReportedListing", fields: [reportedListingId], references: [id])
+
+  @@index([status])
+  @@index([reporterId])
+}
+
+model BlockedUser {
+  id        String   @id @default(cuid())
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+
+  blocker User @relation("Blocker", fields: [blockerId], references: [id])
+  blocked User @relation("Blocked", fields: [blockedId], references: [id])
+
+  @@unique([blockerId, blockedId])
+}
+
+model Review {
+  id          String   @id @default(cuid())
+  reviewerId  String
+  reviewedId  String
+  rating      Int
+  comment     String?
+  connectionId String?
+  createdAt   DateTime @default(now())
+
+  reviewer User @relation("Reviewer", fields: [reviewerId], references: [id])
+  reviewed User @relation("Reviewed", fields: [reviewedId], references: [id])
+
+  @@unique([reviewerId, reviewedId])
+  @@index([reviewedId])
+}
+
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  listingId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id])
+  listing Listing @relation(fields: [listingId], references: [id])
+
+  @@unique([userId, listingId])
+}
+
+model SavedSearch {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  filters   Json
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model CollegeSubmission {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  city        String
+  state       String
+  status      String   @default("pending")
+  createdAt   DateTime @default(now())
+  reviewedAt  DateTime?
+  reviewedBy  String?
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([status])
+}
