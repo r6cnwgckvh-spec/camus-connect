@@ -1,19 +1,9 @@
 'use client';
 
 import { signIn, useSession } from 'next-auth/react';
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 
 export default function HomePage() {
-  const { data: session, status } = useSession();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (status === 'authenticated') {
-      const onboardingDone = (session?.user as any)?.onboardingCompleted;
-      router.push(onboardingDone ? '/dashboard' : '/onboarding');
-    }
-  }, [session, status, router]);
+  const { status } = useSession();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-950">
@@ -45,7 +35,7 @@ export default function HomePage() {
 
             <div className="mt-10 flex flex-col items-center gap-4">
               <button
-                onClick={() => signIn('google', { callbackUrl: '/dashboard' })}
+                onClick={() => signIn('google', { callbackUrl: '/onboarding' })}
                 disabled={status === 'loading'}
                 className="inline-flex items-center gap-3 px-8 py-3.5 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-xl shadow-sm hover:shadow-md hover:border-gray-300 dark:hover:border-gray-600 transition-all text-gray-700 dark:text-gray-200 font-medium disabled:opacity-50"
               >
